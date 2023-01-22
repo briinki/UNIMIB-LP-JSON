@@ -5,7 +5,9 @@
 jsonparse(JSONString, Object) :-
     atomic(JSONString),
     atom_chars(JSONString, JSONStringList),
-    parse(JSONStringList, Object).
+    parse(JSONStringList, Object),
+    print(Object),
+    !.
 
 % JSON Parser
 
@@ -13,24 +15,41 @@ jsonparse(JSONString, Object) :-
 parse(['{', '}'], jsonobj([])).
 parse(['{' | Xs], jsonobj(Members)) :-
     last(Xs, '}'),
-    remove_last(Xs, PairsString),
-    parse_members(PairsString, Members).
+    remove_last(Xs, MembersStringList),
+    parse_members(MembersStringList, Members),
+    !.
 
 % parsing json array
 parse(['[', ']'], jsonarray([])).
 parse(['[' | Xs], jsonarray(Elements)) :-
     last(Xs, ']'),
-    remove_last(Xs, ElementsString),
-    parse_elements(ElementsString, Elements).
+    remove_last(Xs, ElementsStringList),
+    parse_elements(ElementsStringList, Elements),
+    !.
 
 % parse_members/2 
 % - RawMembers : Raw Json String without the external curly brackets
 % - [Pair | Pairs] : Pairs List (ex: [("first_key", "first_value"), ("second_key", "second_value")])
-parse_members(PairString, [Pair | []]) :-
-    parse_pair(PairString, Pair).
+parse_members([], []).
+parse_members(MembersStringList, [Pair | Pairs]) :-
+    split_members(MembersStringList, FirstPairStringList, RestPairsStringList),
+    parse_pair(FirstPairStringList, Pair),
+    parse_members(RestPairsStringList, Pairs).
     
-parse_pair(PairString, (Key, Value)) :-
-    split_pair(PairString, TempKey, Value),
-    format_key(TempKey, Key).
+parse_pair(PairStringList, (Key, Value)) :-
+    split_pair(PairStringList, TempKey, TempValue),
+    format_string(TempKey, Key),
+    format_value(TempValue, Value).
     
 parse_elements(ElementsString, [Element | Elements]).
+
+% format_value/2
+% recursively formatting jsonobjects or jsonarrays
+format_value(RawValue, Value) :-
+    parse(RawValue, Value).
+
+format_value(RawValue, Value) :-
+    format_string(RawValue, Value).
+
+format_value(RawValue, Value) :-
+    format_number(RawValue, Value).
