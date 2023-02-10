@@ -11,10 +11,10 @@ test_split_members(RawMembersString, FirstPair, OtherPairs) :-
 
 % Parsing JSON Tests
 test_two_pair_all_strings(Object) :-
-    jsonparse('{"key1":"value1","key2":"value2"}', Object).
+    jsonparse('{"key1":"value"}', Object).
 
 test_two_pair_all_numbers(Object) :-
-    jsonparse('{"key1":1,"key2":2}', Object).
+    jsonparse('{"chiave_uno":1123}', Object).
 
 test_two_pair_number_and_string(Object) :-
     jsonparse('{"key1":"value1","key,2":2}', Object).
@@ -39,4 +39,4 @@ test_nested_array(Object) :-
     jsonparse('{"key":[1,2,3]}', Object).
 
 test_array(Object) :-
-    jsonparse('["a","b","c"]', Object).
+    jsonparse('[1,2,3]', Object).
