@@ -17,7 +17,7 @@ test_two_pair_all_numbers(Object) :-
     jsonparse('{"key1":1,"key2":2}', Object).
 
 test_two_pair_number_and_string(Object) :-
-    jsonparse('{"key1":"value1","key2":2}', Object).
+    jsonparse('{"key1":"value1","key,2":2}', Object).
 
 test_pair_with_special_char(Object) :-
     jsonparse('{"key1":"\t"}', Object).
@@ -37,3 +37,6 @@ test_nested_empty_array(Object) :-
 
 test_nested_array(Object) :-
     jsonparse('{"key":[1,2,3]}', Object).
+
+test_array(Object) :-
+    jsonparse('["a","b","c"]', Object).

@@ -5,11 +5,27 @@ remove_last([X | Xs], [X | R]) :-
     remove_last(Xs, R).
 
 %% split_members/3
-split_members(RawMembersStringList, RawMembersStringList, []) :-
+split_members(RawMembersStringList, RawMembersStringList, [], []) :-
     \+ member(',', RawMembersStringList).
-split_members([',' | Rest], [], Rest) :- !.
-split_members([H | Xs], [H | R], Rest) :-
-    split_members(Xs, R, Rest).
+
+split_members([',' | Rest], [], Rest, []) :- !.
+
+
+split_members(['"' | Xs], ['"' | R], Rest, [token(string) | Stack]) :-
+    split_members(Xs, R, Rest, Stack).
+
+split_members(['"' | Xs], ['"' | R], Rest, Stack) :-
+    split_members(Xs, R, Rest, [token(string) | Stack]).
+
+
+split_members([']' | Xs], ['"' | R], Rest, [token(jsonarray) | Stack]) :-
+        split_members(Xs, R, Rest, Stack).
+
+split_members(['[' | Xs], ['"' | R], Rest, Stack) :-
+    split_members(Xs, R, Rest, [token(jsonarray) | Stack]).
+
+split_members([H | Xs], [H | R], Rest, Stack) :-
+    split_members(Xs, R, Rest, Stack).
 
 % split_pair/3
 % given a key,value pair string, split it at the first ':' occurance
