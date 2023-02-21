@@ -1,114 +1,125 @@
+%%%% -*- Mode: Prolog -*- 
+
 jsonparse(JSONString, Object) :-
+    atomic(JSONString),
     atom_chars(JSONString, JSONStringList),
-    phrase(parse(Object), JSONStringList).
+    phrase(grammar(Object), JSONStringList).
 
-parse(JsonTerm) -->
-    whitespace,
+grammar(jsonobj([])) --> ['{'], whitespace, ['}'], !.
+grammar(jsonobj(Members)) --> 
     ['{'],
-    !,
-    parse_object(JsonTerm).
+    pairs(Members),
+    ['}'], 
+    !.
 
-parse(JsonTerm) -->
-    whitespace,
+grammar(jsonarray([])) --> ['['], whitespace, [']'].
+grammar(jsonarray(Elements)) -->
     ['['],
-    !,
-    parse_array(JsonTerm).
-
-parse_object(jsonobj(Members)) -->
-    parse_members(Members),
-    ['}'],
-    whitespace,
-    !.
-
-parse_members([Pair| MoreMembers]) -->
-    parse_pair(Pair),
-    [','],
-    !,
-    parse_members(MoreMembers).
-
-parse_members([Pair]) -->
-    parse_pair(Pair),
-    {print(Pair)}.
-
-
-parse_array(jsonarray(Elements)) -->
-    parse_elements(Elements),
+    values(Elements),
     [']'],
-    whitespace,
     !.
 
-parse_elements([Value | MoreElements]) -->
-    whitespace,
-    parse_value(Value),
-    whitespace,
+values([Value | MoreElements]) -->
+    value(Value),
     [','],
-    whitespace,
-    parse_elements(MoreElements).
+    values(MoreElements).
+values([Element]) --> value(Element), !.
 
-parse_elements([Value]) -->
-    parse_value(Value).
+% parsing pairs
+pairs([Pair | MoreMembers]) -->
+    pair(Pair),
+    [','],                              % dividing pairs by ','
+    pairs(MoreMembers).                 % parsing pairs recursively
+pairs([Pair]) --> pair(Pair), !.           % parsing single pair
 
-parse_pair(Key','Value) -->
+% parsing single pair
+pair((Attribute, Value)) -->
     whitespace,
-    parse_string(Key),
+    string(Attribute),
     whitespace,
     [':'],
-    whitespace,
-    parse_value(Value),
-    whitespace,
-    {print(Key','Value)}.
-
-parse_string(String) -->
-    ['"'],
-        parse_string_list(String),
-    ['"'].
-
-% parse_value(Value) -->
-%    parse_string(Value),
-%    !.
-    
-parse_value(Value) -->
-    parse_number(Value),
-    !,
-    {print(Value)}.
-    
-parse_value(Value) -->
-    parse(Value),
+    value(Value),
     !.
 
-parse_string_list(String) -->
-    parse_chars(Chars),
-    {Chars \= []},
-    {atom_chars(String, Chars)}.
-
-parse_chars([]) --> [].
-parse_chars([Char | Chars]) -->
-    parse_char(Char),
-    !,
-    parse_chars(Chars).
-
-parse_char(Char) -->
-    [Char].
-
-parse_number(Number) -->
-    parse_digits(Chars),
-    {Chars \= []},
-    {number_chars(Number, Chars)}.
-
-parse_digits([Digit | Digits]) -->
-    parse_digit(Digit),
-    !,
-    parse_digits(Digits).
-parse_digits([]) --> [].
-
-parse_digit(Digit) -->
-    [Digit],
-    {char_type(Digit, digit)},
-    {print(Digit)}.
-
-whitespace -->
-    [' '],
-    !,
-    whitespace.
-
+% whitespace grammar
+whitespace --> ['\t'] , !, whitespace.  % it manages indentations,
+whitespace --> ['\n'], ! , whitespace.  % line feeds,
+whitespace --> ['\r'], !, whitespace.   % and carriage returns
+whitespace --> [' '], !, whitespace.    % spaces
 whitespace --> [].
+
+% string grammar
+string('') --> ['"'], ['"'].
+string(String) -->                      
+    ['"'],
+    format_string(String),
+    ['"'].
+
+format_string(String) -->
+    chars(Chars),
+    {Chars \= []},                      % checking if string is not empty
+    {
+        atom_chars(RawAtomString, Chars), 
+        string_to_atom(String, RawAtomString)
+    }.  % converting Chars List to atom string and then to string
+
+% stacking up chars of a string recursively using DGCs.
+chars([]) --> [].
+chars([Char | Chars]) -->
+    char(Char),
+    !,
+    chars(Chars).
+
+% need to escaping some chars
+char(Char) --> [Char], {check_char(Char)}. %% need to add spaces, newlines etc
+
+value(Value) -->
+    whitespace,
+    (grammar(Value) | string(Value) | number(Value) | boolean(Value) | null(Value)),
+    whitespace,
+    !.
+
+% number grammar
+number(Number) --> 
+    (floating(Number) | integer(Number)). % exponential(Number))
+
+
+integer(Number) --> 
+    format_digits(Digits), 
+    {number_chars(Number, Digits)}.
+
+floating(Number) -->
+    format_digits(IntegerDigits),
+    ['.'],
+    format_digits(DecimalsDigits),
+    {number_chars(Number, [IntegerDigits , '.' | DecimalsDigits])}.
+
+format_digits(Digits) -->
+    digits(Digits),
+    {Digits \= []}.
+
+%format_digits(Number) -->
+%    ['-'],
+%    digits(Digits),
+%    {Digits \= []},
+%    {number_chars(Number, ['-' | Digits])}.
+
+digit(Digit) --> [Digit], {char_type(Digit, digit)}.
+
+digits([Digit | Digits]) --> 
+    digit(Digit),
+    !,
+    digits(Digits).
+digits([]) --> [].
+
+% boolean grammar
+boolean(true) --> ['t'], ['r'], ['u'], ['e'].
+boolean(false) --> ['f'],['a'],['l'],['s'],['e'].
+
+% null grammar
+null(null) --> ['n'], ['u'], ['l'], ['l'].
+
+% check_char/1 : check if a given Char is valid or not. Char must to be instantiate.
+check_char('"') :- fail.
+check_char(Char) :- 
+    string_codes(Char, [CharCode | _]).

@@ -14,14 +14,13 @@ test_two_pair_all_strings(Object) :-
     jsonparse('{"key1":"value"}', Object).
 
 test_two_pair_all_numbers(Object) :-
-    jsonparse('{"chiave_uno":1123}', Object).
+    jsonparse('{"chiave_uno":1}', Object).
 
 test_two_pair_number_and_string(Object) :-
     jsonparse('{"key1":"value1","key,2":2}', Object).
 
 test_pair_with_special_char(Object) :-
     jsonparse('{"key1":"\t"}', Object).
-
 
 test_one_pair(Object) :-
     jsonparse('{"key1":"value1"}', Object).
