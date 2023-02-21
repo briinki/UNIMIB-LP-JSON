@@ -1,41 +1,180 @@
-:- [utils].
+%%%% -*- Mode: Prolog -*- 
+
 :- [jsonparse].
 
-test_split_pair(RawPairString, (Key, Value)) :-
-    atom_chars(RawPairString, PairString),
-    split_pair(PairString, Key, Value).
+test_obj_vuoto :- jsonparse('{}', jsonobj([])).
+test_array_vuoto :- jsonparse('[]', jsonarray([])).
 
-test_split_members(RawMembersString, FirstPair, OtherPairs) :-
-    atom_chars(RawMembersString, MemberString),
-    split_members(MemberString, FirstPair, OtherPairs).
+test_two_pair_std :- 
+    jsonparse('{
+    "nome" : "Arthur",
+    "cognome" : "Dent"
+    }', jsonobj([
+        ("nome", "Arthur"), 
+        ("cognome", "Dent")
+    ])).
 
-% Parsing JSON Tests
-test_two_pair_all_strings(Object) :-
-    jsonparse('{"key1":"value"}', Object).
+test_two_pair_string :- 
+    jsonparse("{
+    \"nome\" : \"Arthur\",
+    \"cognome\" : \"Dentino\"
+    }", jsonobj([
+        ("nome", "Arthur"), 
+        ("cognome", "Dentino")
+    ])).
 
-test_two_pair_all_numbers(Object) :-
-    jsonparse('{"chiave_uno":1}', Object).
+test_superbook_std :- 
+    jsonparse('{
+    "modello" : "SuperBook 1234",
+    "anno di produzione" : 2014,
+    "processore" : {
+        "produttore" : "EsseTi",
+    "velocità di funzionamento (GHz)" : [1, 2, 4, 8]
+        }
+    }', jsonobj([
+        ("modello", "SuperBook 1234"), 
+        ("anno di produzione", 2014), 
+        ("processore", jsonobj([
+            ("produttore", "EsseTi"), 
+            ("velocità di funzionamento (GHz)", 
+            jsonarray([1, 2, 4, 8]))]))
+    ])).
 
-test_two_pair_number_and_string(Object) :-
-    jsonparse('{"key1":"value1","key,2":2}', Object).
+test_superbook_string :- 
+    jsonparse("{
+    \"modello\" : \"SuperBook 1234\",
+    \"anno di produzione\" : 2014,
+    \"processore\" : {
+        \"produttore\" : \"EsseTi\",
+    \"velocità di funzionamento (GHz)\" : [1, 2, 4, 8]
+        }
+    }", jsonobj([
+        ("modello", "SuperBook 1234"), 
+        ("anno di produzione", 2014), 
+        ("processore", jsonobj([
+            ("produttore", "EsseTi"), 
+            ("velocità di funzionamento (GHz)", 
+            jsonarray([1, 2, 4, 8]))]))
+    ])).
 
-test_pair_with_special_char(Object) :-
-    jsonparse('{"key1":"\t"}', Object).
+test_menu_std :- 
+    jsonparse('{
+    "type": "menu",
+    "value": "File",
+    "items": [
+        {"value": "New", "action": "CreateNewDoc"},
+        {"value": "Open", "action": "OpenDoc"},
+        {"value": "Close", "action": "CloseDoc"}
+        ]
+    }', jsonobj([
+        ("type", "menu"), 
+        ("value", "File"), 
+        ("items", jsonarray([
+            jsonobj([("value", "New"), ("action", "CreateNewDoc")]), 
+            jsonobj([("value", "Open"), ("action", "OpenDoc")]), 
+            jsonobj([("value", "Close"), ("action", "CloseDoc")])]))
+        ])
+    ).
 
-test_one_pair(Object) :-
-    jsonparse('{"key1":"value1"}', Object).
+test_menu_string :- 
+    jsonparse("{
+    \"type\": \"menu\",
+    \"value\": \"File\",
+    \"items\": [
+        {\"value\": \"New\", \"action\": \"CreateNewDoc\"},
+        {\"value\": \"Open\", \"action\": \"OpenDoc\"},
+        {\"value\": \"Close\", \"action\": \"CloseDoc\"}
+        ]
+    }", jsonobj([
+        ("type", "menu"), 
+        ("value", "File"), 
+        ("items", jsonarray([
+            jsonobj([("value", "New"), ("action", "CreateNewDoc")]), 
+            jsonobj([("value", "Open"), ("action", "OpenDoc")]), 
+            jsonobj([("value", "Close"), ("action", "CloseDoc")])]))
+        ])
+    ).
 
-test_nested_empty_object(Object) :-
-    jsonparse('{"key":{}}', Object).
+% true
+test_access_special_1 :- jsonaccess(jsonobj(Members), [], jsonobj(Members)).
 
-test_nested_object(Object) :-
-    jsonparse('{"key":{"nested_key":"nested_value"}}', Object).
+%false
+pr_test_access_special_2 :- jsonaccess(jsonarray(_), [], _).
+test_access_special_2 :-
+    not(pr_test_access_special_2).
 
-test_nested_empty_array(Object) :-
-    jsonparse('{"key":[]}', Object).
+% O = jsonobj([(”nome”, ”Arthur”), (”cognome”, ”Dent”)])
+% R = ”Arthur”
+test_parse_access_1 :-
+    jsonparse('{"nome" : "Arthur", "cognome" : "Dent"}', O),
+    jsonaccess(O, ["nome"], "Arthur").
 
-test_nested_array(Object) :-
-    jsonparse('{"key":[1,2,3]}', Object).
+% O = jsonobj([(”nome”, ”Arthur”), (”cognome”, ”Dent”)])
+% R = ”Arthur”
+test_parse_access_2 :-
+    jsonparse('{"nome": "Arthur", "cognome": "Dent"}', O),
+    jsonaccess(O, "nome", "Arthur"). 
 
-test_array(Object) :-
-    jsonparse('[1,2,3]', Object).
+% Z = jsonobj([(”name”, ”Zaphod”), (”heads”, jsonarray([”Head1”, ”Head2”]))])
+% R = ”Head2”
+test_parse_access_zaphod :-
+    jsonparse('{"nome" : "Zaphod",
+    "heads" : ["Head1", "Head2"]}', % Attenzione al newline.
+    Z),
+    jsonaccess(Z, ["heads", 1], "Head2").
+
+% false
+pr_test_mismatched_brackets :- jsonparse('[}', _).
+test_mismatched_brackets :-
+    not(pr_test_mismatched_brackets).
+
+% false
+pr_test_parse_access_out_of_bounds :- 
+    jsonparse('[1, 2, 3]', A), 
+    jsonaccess(A, [3], _).
+test_parse_access_out_of_bounds :- 
+    not(pr_test_parse_access_out_of_bounds).
+
+% No.
+pr_test_reverted_1 :- 
+    jsonparse('{"nome" : "Arthur", "cognome" : "Dent"}',
+    jsonobj([jsonarray(_) | _])).
+test_reverted_1 :- 
+    not(pr_test_reverted_1).
+
+% N = "Arthur"
+test_reverted_2 :-
+    jsonparse('{"nome" : "Arthur", "cognome" : "Dent"}',
+    jsonobj([("nome", "Arthur") | _])).
+
+% R = "Dent"
+test_reverted_3 :-
+    jsonparse('{"nome" : "Arthur", "cognome" : "Dent"}', JSObj),
+    jsonaccess(JSObj, ["cognome"], "Dent").
+
+test_once(Predicate) :-
+    write(Predicate),
+    call(Predicate),
+    write(":\t✅\n").
+
+test_all :-
+    test_once(test_obj_vuoto),
+    test_once(test_array_vuoto),
+    test_once(test_two_pair_std),
+    test_once(test_two_pair_string),
+    test_once(test_superbook_std),
+    test_once(test_superbook_string),
+    test_once(test_menu_std),
+    test_once(test_menu_string),
+    test_once(test_access_special_1),
+    test_once(test_access_special_2),
+    test_once(test_parse_access_1),
+    test_once(test_parse_access_2),
+    test_once(test_parse_access_zaphod),
+    test_once(test_mismatched_brackets),
+    test_once(test_parse_access_out_of_bounds),
+    test_once(test_reverted_1),
+    test_once(test_reverted_2),
+    test_once(test_reverted_3).
+
+reloadt :- [test], tty_clear.
