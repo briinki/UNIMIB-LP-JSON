@@ -75,34 +75,43 @@ char(Char) --> [Char], {check_char(Char)}. %% need to add spaces, newlines etc
 
 value(Value) -->
     whitespace,
-    (grammar(Value) | string(Value) | number(Value) | boolean(Value) | null(Value)),
+    (
+        grammar(Value) | 
+        string(Value) | 
+        number(Value) | 
+        boolean(Value) | 
+        null(Value)
+    ),
     whitespace,
     !.
 
 % number grammar
-number(Number) --> 
-    (floating(Number) | integer(Number)). % exponential(Number))
+number(Number) --> floating(Number).
+%number(Number) --> exponential(Number).
+number(Number) --> integer(Number). % exponential(Number))
 
-
+integer(Number) -->
+    ['-'],
+    format_digits(Digits), 
+    {number_chars(Number, ['-' | Digits])}.
 integer(Number) --> 
     format_digits(Digits), 
     {number_chars(Number, Digits)}.
 
 floating(Number) -->
-    format_digits(IntegerDigits),
+    integer(Whole),
     ['.'],
-    format_digits(DecimalsDigits),
-    {number_chars(Number, [IntegerDigits , '.' | DecimalsDigits])}.
+    format_digits(FracDigits),
+    {
+        number_chars(Frac, FracDigits),
+        atom_concat(Whole, '.', Temp), 
+        atom_concat(Temp, Frac, AtomNumber),
+        atom_number(AtomNumber, Number)
+    }.
 
 format_digits(Digits) -->
     digits(Digits),
     {Digits \= []}.
-
-%format_digits(Number) -->
-%    ['-'],
-%    digits(Digits),
-%    {Digits \= []},
-%    {number_chars(Number, ['-' | Digits])}.
 
 digit(Digit) --> [Digit], {char_type(Digit, digit)}.
 
@@ -119,7 +128,8 @@ boolean(false) --> ['f'],['a'],['l'],['s'],['e'].
 % null grammar
 null(null) --> ['n'], ['u'], ['l'], ['l'].
 
-% check_char/1 : check if a given Char is valid or not. Char must to be instantiate.
+% check_char/1 : check if a given Char is valid or not. 
+% Char must to be instantiate.
 check_char('"') :- fail.
 check_char(Char) :- 
     string_codes(Char, [CharCode | _]).
