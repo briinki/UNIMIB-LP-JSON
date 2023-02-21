@@ -86,33 +86,21 @@ value(Value) -->
     !.
 
 % number grammar
-number(Number) --> floating(Number).
-%number(Number) --> exponential(Number).
-number(Number) --> integer(Number). % exponential(Number))
-
-integer(Number) -->
-    ['-'],
-    format_digits(Digits), 
-    {number_chars(Number, ['-' | Digits])}.
-integer(Number) --> 
-    format_digits(Digits), 
-    {number_chars(Number, Digits)}.
-
-floating(Number) -->
-    integer(Whole),
-    ['.'],
-    format_digits(FracDigits),
-    {
-        number_chars(Frac, FracDigits),
-        atom_concat(Whole, '.', Temp), 
-        atom_concat(Temp, Frac, AtomNumber),
-        atom_number(AtomNumber, Number)
-    }.
+number(Number) --> 
+format_digits(Digits),
+{
+    atom_chars(RawNumberAtom, Digits),
+    atom_number(RawNumberAtom, Number)
+}.
 
 format_digits(Digits) -->
     digits(Digits),
     {Digits \= []}.
 
+digit('-') --> ['-'].
+digit('+') --> ['+'].
+digit('.') --> ['.'].
+digit('e') --> ['e'] | ['E'].
 digit(Digit) --> [Digit], {char_type(Digit, digit)}.
 
 digits([Digit | Digits]) --> 
