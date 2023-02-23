@@ -1,1 +1,18 @@
-{"type":"menu","value":"File","items":[{"value":"New","action":"CreateNewDoc"},{"value":"Open","action":"OpenDoc"},{"value":"Close","action":"CloseDoc"}]}
+{
+    "type": "menu",
+    "value": "File",
+    "items": [
+        {
+            "value": "New",
+            "action": "CreateNewDoc"
+        },
+        {
+            "value": "Open",
+            "action": "OpeDoc"
+        },
+        {
+            "value": "Close",
+            "action": "CloseDoc"
+        }
+    ]
+}

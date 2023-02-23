@@ -155,7 +155,7 @@ test_reverted_3 :-
 test_once(Predicate) :-
     write(Predicate),
     call(Predicate),
-    write(":\t✅\n").
+    write(": ✅\n").
 
 test_all :-
     test_once(test_obj_vuoto),
@@ -176,5 +176,8 @@ test_all :-
     test_once(test_reverted_1),
     test_once(test_reverted_2),
     test_once(test_reverted_3).
+
+test :-
+    print('\"').
 
 reloadt :- [test], tty_clear.
