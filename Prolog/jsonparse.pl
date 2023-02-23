@@ -10,7 +10,7 @@ jsonparse(JSONString, Object) :-
 grammar(jsonobj([])) --> ['{'], whitespace, ['}'], !.
 grammar(jsonobj(Members)) --> 
     ['{'],
-    pairs(Members),
+    members(Members),
     ['}'], 
     !.
 
@@ -22,11 +22,11 @@ grammar(jsonarray(Elements)) -->
     !.
 
 % PAIRS GRAMMAR
-pairs([Pair | MoreMembers]) -->
+members([Pair | MoreMembers]) -->
     pair(Pair),
-    [','],                              % dividing pairs by ','
-    pairs(MoreMembers).                 % parsing pairs recursively
-pairs([Pair]) --> pair(Pair), !.           % parsing single pair
+    [','],                              % dividing members by ','
+    members(MoreMembers).                 % parsing members recursively
+members([Pair]) --> pair(Pair), !.           % parsing single pair
 
 % PAIR GRAMMAR
 pair((Attribute, Value)) -->
@@ -139,4 +139,4 @@ jsondump(JSON, FileName) :-
     write(Stream, JSONString),
     close(Stream).
 
-reload :- [jsonparse], tty_clear.
+reload :- [jsonparse], tty_clear. % tty_clear valid only for UNIX systems.
