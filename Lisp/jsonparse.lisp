@@ -16,13 +16,42 @@
 (defun is-last-of (target-char char-list)
 	(string-equal target-char (car (last char-list))))
 
-(defun jsonparse-members (tokens) 
-	(cond ((null tokens) '())))
+;; Split the string by ",". Then
+;; if in a substring there is an odd number of "\""
+;; it means that i've splitted a json-string.
+;; if not, it means that i've splitted the pairs
+;; O(n)
+(defun split-string (delimiter tokens)
+  ((lambda (split start end)
+     (if end
+         (let ((token (subseq tokens start end)))
+           (cons token (split (1+ end) (position delimiter tokens :start (1+ end)))))
+         NIL))
+   (lambda (start end)
+     (if end
+         (let ((token (subseq tokens start end)))
+           (cons token (split (1+ end) (position delimiter tokens :start (1+ end)))))
+         NIL))
+   0
+   (position delimiter tokens)))
 
+
+(defun split_pairs (tokens)
+	"This function splits the members in a pair-list"
+	(let (pair-list ))
+)
+
+;; members --> empty | pair, pairs
+(defun jsonparse-members (tokens) 
+	(cond ((null tokens) '())
+		((is-single-pair tokens) (jsonparse-pair tokens))
+		(T ())))
+
+;; object -> { ws } | { members }
 (defun jsonparse-object (tokens)
   (cond ((null tokens) (error "Unmatched curly brackets"))
         ((is-last-of "}" tokens)
-         (cons 'JSONOBJ (jsonparse-members (butlast tokens))))
+        	(cons 'JSONOBJ (jsonparse-members (butlast tokens))))
 				((is-whitespace (first tokens)) 
 					(jsonparse-members (ignore-whitespace (rest tokens))))))
 
