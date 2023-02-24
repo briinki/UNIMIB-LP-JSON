@@ -1,68 +1,94 @@
 (defun string-to-char-list (str)
   (coerce str 'list))
 
+(defun char-list-to-string (char-list)
+  (coerce char-list 'string))
+
 (defun is-whitespace (chr)
-	(or (string-equal chr " ")
-			(string-equal chr "\t")
-			(string-equal chr "\r")
-			(string-equal chr "\n"))
-)
+  (or (string-equal chr " ")
+      (string-equal chr "\t")
+      (string-equal chr "\r")
+      (string-equal chr "\n"))
+  )
 
 (defun ignore-whitespace (tokens)
-	(if (is-whitespace (first tokens))
-		(ignore-whitespace (rest tokens))
-		tokens))
+  (if (is-whitespace (first tokens))
+      (ignore-whitespace (rest tokens))
+    tokens))
 
 (defun is-last-of (target-char char-list)
-	(string-equal target-char (car (last char-list))))
+  (string-equal target-char (car (last char-list))))
 
-;; Split the string by ",". Then
-;; if in a substring there is an odd number of "\""
-;; it means that i've splitted a json-string.
-;; if not, it means that i've splitted the pairs
-;; O(n)
-(defun split-string (delimiter tokens)
-  ((lambda (split start end)
-     (if end
-         (let ((token (subseq tokens start end)))
-           (cons token (split (1+ end) (position delimiter tokens :start (1+ end)))))
-         NIL))
-   (lambda (start end)
-     (if end
-         (let ((token (subseq tokens start end)))
-           (cons token (split (1+ end) (position delimiter tokens :start (1+ end)))))
-         NIL))
-   0
-   (position delimiter tokens)))
+(defun jsonparse-string (tokens &optional (acc '()))
+  (if (string-equal (first tokens) "\"")
+      (list (char-list-to-string (reverse acc)) (rest tokens))
+    (jsonparse-string (rest tokens) (cons (first tokens) acc))))
 
+;; JSON OBJECT
+;; from Pair --> string ws ':' value
+;; to (string value)
 
-(defun split_pairs (tokens)
-	"This function splits the members in a pair-list"
-	(let (pair-list ))
-)
+(defun check-colon (tokens) 
+	(cond ((string-equal (first (ignore-whitespace tokens)) ":") (rest tokens))
+				(T (error "Key without value"))))
+(defun jsonparse-pair (tokens)
+	(let ((key-and-rest (jsonparse-string tokens)))
+		(list (car key-and-rest) 
+			(car (jsonparse-value (check-colon (second key-and-rest)))))))
 
-;; members --> empty | pair, pairs
+(defun check-comma (tokens) 
+	(let ((tokens-no-ws (ignore-whitespace tokens)))
+		(cond ((string-equal (first (tokens-no-ws)) ",") (rest tokens-no-ws))
+					((null tokens-no-ws) '()))))
+
 (defun jsonparse-members (tokens) 
-	(cond ((null tokens) '())
-		((is-single-pair tokens) (jsonparse-pair tokens))
-		(T ())))
+  (cond ((null tokens) '())
+        ((is-whitespace (first tokens))
+         (jsonparse-members (ignore-whitespace (rest tokens))))
+        ((string-equal (first tokens) "\"") 
+         (jsonparse-pair (rest tokens)))
+        (T (error ""))))
 
-;; object -> { ws } | { members }
 (defun jsonparse-object (tokens)
   (cond ((null tokens) (error "Unmatched curly brackets"))
         ((is-last-of "}" tokens)
-        	(cons 'JSONOBJ (jsonparse-members (butlast tokens))))
-				((is-whitespace (first tokens)) 
-					(jsonparse-members (ignore-whitespace (rest tokens))))))
+         (list 'JSONOBJ (jsonparse-members (butlast tokens))))))
 
-(defun jsonparse_dispatcher (tokens)
-  "This function takes the list of chars of the json string.
-	It basically \"dispatch the workflow\" based of the next char 
-	in the list"
-	(print tokens)
+;; JSON ARRAY
+(defun jsonparse-element (tokens)
+	(cond ((null tokens) '())))
+
+(defun jsonparse-elements (tokens)
+  (cond ((is-whitespace (first tokens))
+         (jsonparse-elements (ignore-whitespace (rest tokens))))
+        (T (jsonparse-element (rest tokens)))))
+
+(defun jsonparse-array (tokens)
+  (cond ((null tokens) (error "Unmatched square brackets"))
+        ((is-last-of "]" tokens)
+         (cons 'JSONARRAY (jsonparse-elements (butlast tokens))))))
+
+;; JSONPARSE DISPATCHER
+(defun jsonparse-dispatcher (tokens)
   (cond ((null tokens) (error "Unexpected end of input"))
-				((string-equal (first tokens) "{") (jsonparse-object (rest tokens)))))
+				((string-equal (first tokens) "{") (jsonparse-object (rest tokens)))
+				((string-equal (first tokens) "[") (jsonparse-array (rest tokens)))))
 
+;; JSONPARSE
 (defun jsonparse (JSONString)
   (let ((tokens (string-to-char-list JSONString)))
-    (jsonparse_dispatcher tokens)))
+    (jsonparse-dispatcher tokens)))
+
+;; JSONPARSE-VALUE DISPATCHER
+(defun jsonparse-value (tokens)
+	(let ((tokens-no-ws (ignore-whitespace (rest tokens))))
+		(cond ((string-equal (first tokens-no-ws) "\"") 
+						(jsonparse-string (rest tokens-no-ws)))
+					((string-equal (first tokens-no-ws) "{")
+						(jsonparse-object (rest tokens-no-ws)))
+					((string-equal (first tokens-no-ws) "[")
+						(jsonparse-array (rest tokens-no-ws)))
+					((or (string-equal (first tokens-no-ws) "t")
+							 (string-equal (first tokens-no-ws) "f")
+							 (string-equal (first tokens-no-ws) "n"))
+								 (jsonparse-constant tokens-no-ws)))))
