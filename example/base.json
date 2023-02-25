@@ -1,4 +1,7 @@
 {
     "nome": "Arthur",
-    "cognome": "Dent"
+    "cognome": "Dent",
+    "indirizzo" : {
+    },
+    "sesso" : "M"
 }
