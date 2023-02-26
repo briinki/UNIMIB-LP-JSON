@@ -3,7 +3,8 @@
 ;;;; Luca Brini 879459
 
 (defun jsonparse (json-string)
-  (let ((json-char-list (remove-whitespaces (str-to-chr-list json-string))))
+  (let ((json-char-list
+	 (remove-whitespaces (str-to-chr-list json-string))))
     (or (jsonparse-array json-char-list)
         (jsonparse-object json-char-list)
         (error "Error: invalid JSON string"))))
@@ -16,8 +17,8 @@
 		 (jsonparse-elements (cdr json-char-list))
 	       (if (not (string-equal (car char-list-rest) "]"))
 		   (error "Syntax Error: cannot find closing ]")
-		   (values (cons 'JSONARRAY elements) (cdr char-list-rest))))))
-	(T (error "Syntax Error: cannot find opening ["))))
+		   (values (cons 'JSONARRAY elements)
+			   (cdr char-list-rest))))))))
 
 (defun jsonparse-elements (json-char-list)
   (multiple-value-bind (element next-element-and-rest)
@@ -36,8 +37,8 @@
              	 (jsonparse-members (cdr json-char-list))
 	       (if (not (string-equal (car char-list-rest) "}"))
 		   (error "Syntax Error: cannot find closing }")
-		   (values (cons 'JSONOBJ members) (cdr char-list-rest))))))
-        (T (error "Syntax Error: cannot find opening {"))))
+		   (values (cons 'JSONOBJ members)
+			   (cdr char-list-rest))))))))
 
 (defun jsonparse-members (json-char-list)
   (multiple-value-bind (pair next-pair-and-rest)
@@ -97,45 +98,81 @@
          (values NIL (cdr json-char-list)))
         (T (multiple-value-bind (str char-list-rest)
 	       (jsonparse-string (cdr json-char-list))
-             (values (cons (car json-char-list) str) char-list-rest)))))
+             (values (cons (car json-char-list) str)
+		     char-list-rest)))))
 
 (defun jsonparse-number (json-char-list)
+  (multiple-value-bind (digits-char-list char-list-rest)
+      (jsonparse-number-proxy json-char-list)
+    (let ((json-number (digits-list-to-number digits-char-list)))
+      (values json-number char-list-rest))))
+
+(defun jsonparse-number-proxy (json-char-list)
   (multiple-value-bind (int decimals-and-rest)
       (jsonparse-number-integer json-char-list)
     (if (string-equal (car decimals-and-rest) ".")
 	(multiple-value-bind (floating-number exponential-and-rest)
 	    (jsonparse-number-floating int (cdr decimals-and-rest))
-	  (if (or (string-equal (car exponential-and-rest) "e") ;; if i have a floating number
+	  (if (or (string-equal (car exponential-and-rest) "e")
 		  (string-equal (car exponential-and-rest) "E"))
 	      (multiple-value-bind (exponential-number char-list-rest)
-		  (jsonparse-number-exponential floating-number (cdr exponential-and-rest))
+		  (jsonparse-number-exponential 
+		   floating-number 
+		   (cdr exponential-and-rest))
 		(values exponential-number char-list-rest))
 	      (values floating-number exponential-and-rest)))
-	(if (or (string-equal (car decimals-and-rest) "e") ;; if i have an int number
+	(if (or (string-equal (car decimals-and-rest) "e")
 		(string-equal (car decimals-and-rest) "E"))
 	    (multiple-value-bind (exponential-number char-list-rest)
-		(jsonparse-number-exponential int (cdr decimals-and-rest))
+		(jsonparse-number-exponential int
+					      (cdr decimals-and-rest))
 	      (values exponential-number char-list-rest))
 	    (values int decimals-and-rest)))))
 
 (defun jsonparse-number-integer (json-char-list)
   (cond ((or (null json-char-list)
-	     (not (digit-char-p (car json-char-list)))
-	     )
+	     (not (digit-char-p (car json-char-list))))
 	 (values NIL json-char-list))
 	(T (multiple-value-bind (digt char-list-rest)
 	       (jsonparse-number-integer (cdr json-char-list))
-	     (values (cons (car json-char-list) digt) char-list-rest)))))
+	     (values (cons (car json-char-list) digt)
+		     char-list-rest)))))
 
 (defun jsonparse-number-floating (int json-char-list)
   (multiple-value-bind (decimals char-list-rest)
       (jsonparse-number-integer json-char-list)
-    (values (append int '(".") decimals) char-list-rest)))
+    (values (append int '(#\.) decimals) char-list-rest)))
 
 (defun jsonparse-number-exponential (current-number json-char-list)
   (multiple-value-bind (exponent char-list-rest)
       (jsonparse-number-integer json-char-list)
-    (values (append current-number '("e") exponent) char-list-rest)))
+    (values (append current-number '(#\e) exponent) char-list-rest)))
+
+(defun digits-list-to-number (digits-list)
+  (multiple-value-bind (raw-integer-part raw-decimal-part)
+      (split-list-at-element digits-list #\.)
+    (print raw-integer-part)
+    (if (not (null raw-decimal-part))
+	(let* ((integer-number
+		(digits-list-to-number-integer
+		 (reverse raw-integer-part)))
+	       (decimal-number
+		(float (/ (digits-list-to-number-integer
+			   (reverse raw-decimal-part))
+			  (expt 10 (length raw-decimal-part))))))
+	  (+ integer-number decimal-number))
+	(digits-list-to-number-integer (reverse raw-integer-part)))))
+
+(defun digits-list-to-number-integer (integer-digits-list
+				      &optional (position 0))
+  (cond ((or (null integer-digits-list)) 0)
+	(T (let ((incremental-number
+		  (digits-list-to-number-integer
+		   (cdr integer-digits-list) (1+ position))))
+	     (+ (* (digit-char-p (car integer-digits-list))
+		   (expt 10 position))
+		incremental-number)))))
+
 
 ;;; UTILS SECTION
 
@@ -146,11 +183,16 @@
 (defun chr-list-to-str (char-list)
   (coerce char-list 'string))
 
+(defun split-list-at-element (lst target-element)
+  (let ((sublist-after (member target-element lst)))    
+    (if (not sublist-after)
+	(values lst NIL)
+	(values (subseq lst 0 (- (length lst) (length sublist-after)))
+		(cdr sublist-after))))) ;; removing the target-element
+
 ;;; This function removes all the whitespaces from the json-char-list.
 ;;; When it encounters a start string char (\") it calls the function
 ;;; which will ignore all the whitespace chars in the string.
-;;; There are multiple definitions of same whitespace char because I've
-;;; notice that \Newline and \n are considered differet in some systems
 (defun remove-whitespaces (json-char-list)
   (let ((chr (car json-char-list)))
     (cond ((null json-char-list) json-char-list)
@@ -160,7 +202,8 @@
 	       (string-equal chr #\Newline))
 	   (remove-whitespaces (cdr json-char-list)))
 	  ((string-equal chr "\"")
-	   (cons chr (remove-whitespaces-ignore (cdr json-char-list))))
+	   (cons chr (remove-whitespaces-ignore
+		      (cdr json-char-list))))
 	  (t (cons chr (remove-whitespaces (cdr json-char-list)))))))
 
 (defun remove-whitespaces-ignore (json-char-list)
@@ -169,7 +212,9 @@
           ((and (string-equal chr "\"") 
 		(string-equal (cadr json-char-list) "\""));checks for \"
            (cons chr (cons (cadr json-char-list) 
-			   (remove-whitespaces-ignore (cddr json-char-list)))))
+			   (remove-whitespaces-ignore
+			    (cddr json-char-list)))))
 	  ((string-equal chr "\"") 
 	   (cons chr (remove-whitespaces (cdr json-char-list))))
-	  (T (cons chr (remove-whitespaces-ignore (cdr json-char-list)))))))
+	  (T (cons chr (remove-whitespaces-ignore
+			(cdr json-char-list)))))))
