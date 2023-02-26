@@ -11,6 +11,10 @@
 
 
 ;;; JSONPARSE ARRAY
+;;; This function checks if there are '[' and ']'
+;;; In case of no chars between the brackets, then JSONARRAY will be
+;;; the only element of the list.
+;;; Otherwise, it starts to parsing the values in between.
 (defun jsonparse-array (json-char-list)
   (cond ((string-equal (car json-char-list) "[")
 	 (if (string-equal (cadr json-char-list) "]")
@@ -22,6 +26,9 @@
 		   (values (cons 'JSONARRAY elements)
 			   (cdr char-list-rest))))))))
 
+;;; This function checks if there is a ',' after parsing the first
+;;; value. If so, it parses the next value until it reaches the end
+;;; of the json-array
 (defun jsonparse-elements (json-char-list)
   (multiple-value-bind (element next-element-and-rest)
       (jsonparse-value json-char-list)
@@ -33,6 +40,10 @@
 
 
 ;;; JSONPARSE OBJECT
+;;; This function checks if there are '{' and '}'
+;;; In case of no chars between the brackets, then JSONOBJ will be
+;;; the only element of the list.
+;;; Otherwise, it starts to parsing the members in between.
 (defun jsonparse-object (json-char-list)
   (cond ((string-equal (car json-char-list) "{")
 	 (if (string-equal (cadr json-char-list) "}")
@@ -44,6 +55,9 @@
 		   (values (cons 'JSONOBJ members)
 			   (cdr char-list-rest))))))))
 
+;;; This function checks if there is a ',' after parsing the first
+;;; pair. If so, it parses the next pair until it reaches the end
+;;; of the json-obj 
 (defun jsonparse-members (json-char-list)
   (multiple-value-bind (pair next-pair-and-rest)
       (jsonparse-pair json-char-list)
@@ -53,6 +67,9 @@
 	     (values (cons pair next-pair) char-list-rest)))
 	  (T (values (list pair) next-pair-and-rest)))))
 
+;;; This function checks if after the key there is the mandatory ':'
+;;; If not, it throws an error. Otherwise it parses the value of the
+;;; pair.
 (defun jsonparse-pair (json-char-list)
   (multiple-value-bind (pair-key raw-value-and-rest)
       (jsonparse-pair-key json-char-list)
@@ -62,6 +79,8 @@
 	  (values (list pair-key pair-value) char-list-rest))
 	(error "Syntax Error: missing a colon"))))
 
+;;; This functions checks if the key is a string. Otherwise it throws
+;;; an error.
 (defun jsonparse-pair-key (json-char-list)
   (if (not (string-equal (car json-char-list) "\""))
       (error "Syntax Error: cannot find a valid pair key")
@@ -71,7 +90,7 @@
 
 
 ;;; JSONPARSE VALUE
-;;; This function parse the next value in the json-char-list
+;;; This function parse the value in the json-char-list
 ;;; It supports: Strings, Objects, Arrays, Numbers, Booleans and null
 (defun jsonparse-value (json-char-list)
   (cond ((string-equal (car json-char-list) "\"") 
@@ -107,12 +126,21 @@
              (values (cons (car json-char-list) str)
 		     char-list-rest)))))
 
+;;; This function takes the digits of the number from the
+;;; json-char-list by calling the jsonparse-number-proxy function.
+;;; Suddently, it gets the number value with digits-list-to-number
 (defun jsonparse-number (json-char-list)
-  (multiple-value-bind (digits-char-list char-list-rest)
-      (jsonparse-number-proxy json-char-list)
-    (let ((json-number (digits-list-to-number digits-char-list)))
-      (values json-number char-list-rest))))
+  (if (and (string-equal (car json-char-list) "0")
+	   (not (string-equal (cdr json-char-list) ".")))
+      (error "Syntax Error: after a 0 is mandatory to have a .")
+      (multiple-value-bind (digits-char-list char-list-rest)
+	  (jsonparse-number-proxy json-char-list)
+	(let ((json-number (digits-list-to-number digits-char-list)))
+	  (values json-number char-list-rest)))))
 
+;;; This function checks
+;;;     - If there's a '.' in the digits-list
+;;;     - If there's a 'e' or 'E' in the digits-list
 (defun jsonparse-number-proxy (json-char-list)
   (multiple-value-bind (int decimals-and-rest)
       (jsonparse-number-integer json-char-list)
@@ -135,6 +163,9 @@
 	      (values exponential-number char-list-rest))
 	    (values int decimals-and-rest)))))
 
+;;; This function checks the integer number, considering also the
+;;; sign. By setting the optional parameter 'ignore-singn' to T, 
+;;; it will ignore the presence of the sign
 (defun jsonparse-number-integer (json-char-list
 				 &optional (ignore-sign NIL))
   (cond ((or (string-equal (car json-char-list) "+")
@@ -155,11 +186,13 @@
 	     (values (cons (car json-char-list) digt)
 		     char-list-rest)))))
 
+;;;This functions include in the digits list the '.'
 (defun jsonparse-number-floating (int json-char-list)
   (multiple-value-bind (decimals char-list-rest)
       (jsonparse-number-integer json-char-list T)
     (values (append int '(#\.) decimals) char-list-rest)))
 
+;;;This functions include in the digits list the 'e'
 (defun jsonparse-number-exponential (current-number json-char-list)
   (multiple-value-bind (exponent char-list-rest)
       (jsonparse-number-integer json-char-list)
@@ -176,6 +209,8 @@
 	   (jsonaccess-array (cdr json-object) fields))
 	  (T (error "JSON Access Error: unknown object type")))))
 
+;;; This function extracts the value of the pair with key equal to the
+;;; first element of the fields list.
 (defun jsonaccess-object (json-object fields)
   (cond ((null json-object) NIL)
 	((not (stringp (car fields)))
@@ -187,6 +222,7 @@
 	       (jsonaccess-object (cdr json-object) fields)
 	       (jsonaccess (cadar json-object) (cdr fields))))))
 
+;;; This function extracts the value of the pair with a certain key
 (defun jsonaccess-object-one-field (json-object field)
   (cond ((null json-object) NIL)
 	(T (if (not (string-equal (caar json-object)
@@ -194,6 +230,8 @@
 	       (jsonaccess-object-one-field (cdr json-object) field)
 	       (cadar json-object)))))
 
+;;; This function extracts the value of the element at the first
+;;; index in the list
 (defun jsonaccess-array (json-array indexes)
   (cond ((or (>= (car indexes) (length json-array))
 	     (minusp (car indexes)))
@@ -212,8 +250,9 @@
       (with-open-file (stream filename
 			      :if-does-not-exist :error
 			      :direction :input)
-	(jsonparse (read-char-by-char stream))))) ;read
+	(jsonparse (read-char-by-char stream)))))
 
+;;; this function reads, char by char, a stream.
 (defun read-char-by-char (stream)
   (let ((chr (read-char stream NIL NIL)))
     (cond ((null chr) chr)
@@ -233,6 +272,10 @@
 		(chr-list-to-str (jsonreverse json-object 1)))
 	filename)))
 
+;;; This function, given a certain json-object, returns the
+;;; corrispondent json string representation of the json-object.
+;;; The parameter depth is used to determine how much tabs need
+;;; to be placed before a value or a key.
 (defun jsonreverse (json-object depth)
   (flatten 
    (cond ((eq (car json-object) 'JSONOBJ)
@@ -245,6 +288,8 @@
 		(jsonreverse-tab-dispenser (1- depth)) #\]))
 	 (T (error "JSON Reverse Error: unknown object type ")))))
 
+;;; Given the members of an object, it returns their
+;;; json string representation
 (defun jsonreverse-object (json-members depth)
   (if (null (car json-members))
       #\Space
@@ -258,6 +303,8 @@
 		 (jsonreverse-object (cdr json-members) depth))
 	   #\Newline))))
 
+;;; Given the elements of an array, it returns their
+;;; json string representation
 (defun jsonreverse-array (json-elements depth)
   (if (null (car json-elements))
       #\Space
@@ -269,6 +316,7 @@
 		 (jsonreverse-array (cdr json-elements) depth))
 	   #\Newline))))
 
+;;; This function converts a parsed json-value to its string json-value
 (defun jsonreverse-value (json-value depth)
   (cond ((stringp json-value) (jsonreverse-string json-value))
 	((numberp json-value)
@@ -279,12 +327,18 @@
 	 (jsonreverse-constant json-value))
 	(T (jsonreverse json-value (1+ depth)))))
 
+;;; Adding '"' at both sides of the string, after converting it to
+;;; a list of chars.
 (defun jsonreverse-string (json-string)
   (list #\" (str-to-chr-list json-string) #\"))
 
+;;; Converting the parsed NULL, TRUE and FALSE values to their
+;;; json string representation
 (defun jsonreverse-constant (json-constant)
   (str-to-chr-list (string-downcase (string json-constant))))
 
+;;; This function adds a certain number of horizontal tabs based
+;;; on the depth parameter
 (defun jsonreverse-tab-dispenser (depth)
   (if (> depth 0)
       (cons #\Tab (jsonreverse-tab-dispenser (1- depth)))))
@@ -299,6 +353,8 @@
 (defun chr-list-to-str (char-list)
   (coerce char-list 'string))
 
+;;; This function flats a list. It brings nested lists to the same
+;;; level of nesting.
 (defun flatten (lst)
   (cond ((null lst) nil)
         ((atom lst) (list lst))
@@ -319,7 +375,7 @@ must be an integer")
 				 raw-base-part))
 		   (exponent-number (digits-list-to-number-integer
 				     raw-exponent-part)))
-	      (* base-number (expt 10 exponent-number))))
+	      (float (* base-number (expt 10 exponent-number)))))
 	(digits-list-to-number-floating-or-int raw-base-part))))
 
 ;;; This functions checks if the input digit-char-list contains a dot.

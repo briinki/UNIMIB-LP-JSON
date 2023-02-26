@@ -1,4 +1,6 @@
-%%%% -*- Mode: Prolog -*- 
+%%%% -*- Mode: Prolog -*-
+
+%%%% Luca Brini 879459
 
 % JSONReverse
 % Handling case where object is a jsonobj

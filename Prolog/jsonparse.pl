@@ -1,4 +1,7 @@
 %%%% -*- Mode: Prolog -*- 
+
+%%%% Luca Brini 879459
+
 :- [jsonaccess].
 :- [jsonreverse].
 
@@ -25,8 +28,8 @@ grammar(jsonarray(Elements)) -->
 members([Pair | MoreMembers]) -->
     pair(Pair),
     [','],                              % dividing members by ','
-    members(MoreMembers).                 % parsing members recursively
-members([Pair]) --> pair(Pair), !.           % parsing single pair
+    members(MoreMembers).                % parsing members recursively
+members([Pair]) --> pair(Pair), !.        % parsing single pair
 
 % PAIR GRAMMAR
 pair((Attribute, Value)) -->
@@ -64,9 +67,9 @@ string(String) -->
 
 format_string(String) -->
     chars(Chars),
-    {Chars \= []},                          % checking if string is not empty
+    {Chars \= []},                  % checking if string is not empty
     {
-        atom_chars(RawAtom, Chars),       % converting chars list to atom 
+        atom_chars(RawAtom, Chars),  % converting chars list to atom 
         string_to_atom(String, RawAtom)   % and then to Prolog string
     }.  
 
@@ -82,9 +85,9 @@ char(Char) --> [Char], {check_char(Char)}.
 
 % check_char/1 : check if a given Char is valid or not. 
 % Char must to be instantiate.
-check_char('\"') :- print("char").
+check_char('\"').
 check_char(Char) :- 
-    string_codes(Char, [CharCode | _]).
+    string_codes(Char, [_ | _]).
 
 % NUMBER GRAMMAR
 number(Number) --> 
@@ -139,4 +142,5 @@ jsondump(JSON, FileName) :-
     write(Stream, JSONString),
     close(Stream).
 
-reload :- [jsonparse], tty_clear. % tty_clear valid only for UNIX systems.
+% tty_clear valid only for UNIX systems.
+reload :- [jsonparse], tty_clear. 

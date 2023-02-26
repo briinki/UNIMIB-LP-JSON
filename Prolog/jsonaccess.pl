@@ -1,4 +1,6 @@
-%%%% -*- Mode: Prolog -*- 
+%%%% -*- Mode: Prolog -*-
+
+%%%% Luca Brini 879459
 
 % JSONACCESS with Fields list
 % Base case for fields list : One field in the list
