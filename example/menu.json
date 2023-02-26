@@ -1,10 +1,7 @@
 {
-    "type": "menu",
-    "value": "File",
     "items": [
         {
-            "value": "New",
-            "action": "CreateNewDoc"
+            "value": "new"
         },
         {
             "value": "Open",
